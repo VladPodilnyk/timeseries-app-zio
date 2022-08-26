@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Index Page</title>
+</head>
+<body>
+<h1>Ugly form</h1>
+
+<label for="start-time">from</label>
+<input data-format="yyyy-MM-dd hh:mm:ss" type="datetime-local" id="timepicker-from" name="timepicker-from">
+
+<label for="end-time">to (included):</label>
+<input data-format="yyyy-MM-dd hh:mm:ss" type="datetime-local" id="timepicker-to" name="timepicker-to">
+
+<button onclick="fetchData()">Fetch data</button>
+
+<div id="result"></div>
+
+
+<script>
+  function fetchData() {
+    let url = "fetch"
+    let tmp = document.getElementById('timepicker-from').value
+    console.log(tmp);
+    console.log(new Date(tmp + ':00.000Z').toUTCString());
+
+    let start = document.getElementById('timepicker-from').value + ':00.000Z';
+    let end = document.getElementById('timepicker-to').value + ':00.000Z';
+    
+    console.log(JSON.stringify( {"start": start, "end": end}));
+
+    fetch(url,  {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+        body: JSON.stringify( {"start": start, "end": end} )
+      }).then(response => response.json())
+      .then(
+        data => {
+          let text = JSON.stringify(data);
+          let divNode = document.getElementById("result");
+          divNode.textContent = text;
+        }
+      ).catch((error) => {
+        console.error('Error:', error)
+      })
+    }
+
+</script>
+
+</body>
+</html>

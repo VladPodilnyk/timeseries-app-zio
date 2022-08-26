@@ -1,0 +1,24 @@
+syntax = "proto2";
+
+package shop.rpc;
+
+import "google/protobuf/timestamp.proto";
+
+service TimeSeries {
+  rpc fetchData (Iterator) returns (QueryResponse) {}
+}
+
+message Iterator {
+  required google.protobuf.Timestamp start = 1;
+  required google.protobuf.Timestamp  end = 2;
+}
+
+message QueryResponse {
+  optional google.protobuf.Timestamp lastProcessed = 1;
+  repeated DataWithTimestamp data = 2;
+}
+
+message DataWithTimestamp {
+  required float value = 1;
+  required google.protobuf.Timestamp receivedTime = 2;
+}
