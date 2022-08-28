@@ -1,19 +1,16 @@
 package timeseries.http
 
 import timeseries.api.HttpApi
+import timeseries.configs.ServerConfig.HttpServerConfig
 import zhttp.http.Middleware
 import zhttp.service.Server
-import zio.{System, ZLayer}
+import zio.*
 
+import java.net.InetAddress
 import scala.concurrent.ExecutionContext
 
-final class HttpServer(api: HttpApi):
-  def start =
-    for {
-      // TODO: pass inet address via config?
-      port <- System.envOrElse("PORT", "8080").map(_.toInt)
-      _    <- Server.start(port, api.http @@ Middleware.cors())
-    } yield ()
+final class HttpServer(api: HttpApi, config: HttpServerConfig):
+  def start = Server.start(config.port, api.http)
 
 object HttpServer:
-  val layer = ZLayer.fromFunction(HttpServer(_))
+  val layer = ZLayer.fromFunction(HttpServer(_, _))

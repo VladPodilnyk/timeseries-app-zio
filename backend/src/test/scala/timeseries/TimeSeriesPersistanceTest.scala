@@ -1,24 +1,39 @@
-// package timeseries
+package timeseries
 
-// import timeseries.model.UserRequest
-// import timeseries.repo.TimeSeries
-// import timeseries.utils.TestDataLoader
-// import zio.IO
+import timeseries.configs.{PostgresCfg, PostgresPortCfg}
+import timeseries.model.UserRequest
+import timeseries.repo.TimeSeries
+import timeseries.sql.SQL
+import timeseries.utils.TestDataLoader
+import zio.*
+import zio.test.*
 
-// final class TimeSeriesTestDummy extends TimeSeriesTest with DummyTest
-// final class TimeSeriesTestPostgres extends TimeSeriesTest with ProdTest
+object TimeSeriesTest extends ZIOSpecDefault:
+  def repoTest =
+    for
+      repo   <- ZIO.service[TimeSeries]
+      loader <- ZIO.service[TestDataLoader]
+      now    <- loader.load()
+      res1   <- repo.fetch(UserRequest(now, now.plusHours(6L)), 10)
+      res2   <- repo.fetch(UserRequest(now, now.plusHours(6L)), 2)
+    yield assertTrue(res1.size == 6, res2.size == 2)
 
-// abstract class TimeSeriesTest extends WithTestDataLoader {
-//   "TimeSeries" should {
-//     "submit & fetch data" in {
-//       (repo: TimeSeries[IO], loader: TestDataLoader[IO]) =>
-//         for {
-//           now <- loader.load()
-//           res1 <- repo.fetch(UserRequest(now, now.plusHours(6L)), 10)
-//           _    <- assertIO(res1.size == 6)
-//           res2 <- repo.fetch(UserRequest(now, now.plusHours(6L)), 2)
-//           _    <- assertIO(res2.size == 2)
-//         } yield ()
-//     }
-//   }
-// }
+  def spec = suite("TimeSeries spec")(
+    test("dummy submit & fetch")(repoTest)
+      .provide(TimeSeries.test, TestDataLoader.layer),
+    test("prod submit & fetch")(repoTest)
+      .provide(
+        TimeSeries.live,
+        TestDataLoader.layer,
+        SQL.layer,
+        ZLayer.succeed(PostgresPortCfg("localhost", 5432)),
+        ZLayer.succeed(
+          PostgresCfg(
+            jdbcDriver = "org.postgresql.Driver",
+            url        = "jdbc:postgresql://{host}:{port}/postgres",
+            user       = "postgres",
+            password   = "postgres",
+          )
+        ),
+      ),
+  )

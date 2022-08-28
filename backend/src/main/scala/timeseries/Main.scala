@@ -1,34 +1,45 @@
 package timeseries
 
-import zio.*
-//import zio.logging.backend.SLF4J
-//import zio.logging.removeDefaultLoggers
-import timeseries.http.HttpServer
-import timeseries.grpc.GrpcServer
-import timeseries.api.HttpApi
+import timeseries.api.{GrpcServerApi, HttpApi}
+import timeseries.configs.*
+import timeseries.configs.ServerConfig.*
 import timeseries.domain.DataFetcher
-import timeseries.api.GrpcServerApi
+import timeseries.grpc.{GrpcClient, GrpcServer}
+import timeseries.http.HttpServer
 import timeseries.repo.TimeSeries
-import timeseries.configs.GrpcServerCfg
-import timeseries.configs.LimitsCfg
+import timeseries.sql.SQL
 import timeseries.utils.CsvDataLoader
+import zio.*
+import zio.logging.backend.SLF4J
+import zio.logging.removeDefaultLoggers
 
 object Main extends ZIOAppDefault:
   override def run =
     ZIO
       .serviceWithZIO[ServiceLauncher](_.start)
-    //(launcher => ZIO.scoped(launcher.start))
       .provide(
         ServiceLauncher.layer,
         GrpcServer.layer,
+        GrpcClient.live,
         GrpcServerApi.layer,
         HttpServer.layer,
         HttpApi.live,
         DataFetcher.layer,
-        TimeSeries.test,
+        TimeSeries.live,
+        SQL.layer,
         CsvDataLoader.layer,
-        ZLayer.succeed(GrpcServerCfg("localhost", 8080)),
+        ZLayer.succeed(HttpServerConfig("0.0.0.0", 8080)),
+        ZLayer.succeed(GrpcServerConfig("0.0.0.0", 8081)),
         ZLayer.succeed(LimitsCfg(512)),
-        //SLF4J.slf4j,
-        //removeDefaultLoggers,
+        ZLayer.succeed(PostgresPortCfg("0.0.0.0", 5432)),
+        ZLayer.succeed(
+          PostgresCfg(
+            jdbcDriver = "org.postgresql.Driver",
+            url        = "jdbc:postgresql://{host}:{port}/postgres",
+            user       = "postgres",
+            password   = "postgres",
+          )
+        ),
+        SLF4J.slf4j,
+        removeDefaultLoggers,
       )

@@ -3,7 +3,7 @@ package timeseries.grpc
 import io.grpc.ManagedChannelBuilder
 import shop.rpc.timeseries_service
 import shop.rpc.timeseries_service.{DataWithTimestamp, QueryResponse, TimeSeriesGrpc}
-import timeseries.configs.GrpcServerCfg
+import timeseries.configs.ServerConfig.GrpcServerConfig
 import zio.*
 import zio.Random.RandomScala
 
@@ -20,7 +20,7 @@ final class DummyImpl(rnd: RandomScala) extends GrpcClient:
       value => QueryResponse(Some(iterator.start), List(DataWithTimestamp(value.toFloat, iterator.start)))
     }
 
-final class GrpcClientImpl(grpcServerCfg: GrpcServerCfg) extends GrpcClient:
+final class GrpcClientImpl(grpcServerCfg: GrpcServerConfig) extends GrpcClient:
   import grpcServerCfg.*
   override def fetchData(iterator: timeseries_service.Iterator): Task[QueryResponse] =
     val channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build

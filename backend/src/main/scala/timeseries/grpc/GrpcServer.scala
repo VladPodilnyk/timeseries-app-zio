@@ -3,22 +3,29 @@ package timeseries.grpc
 import io.grpc.{Server, ServerBuilder}
 import shop.rpc.timeseries_service.TimeSeriesGrpc
 import timeseries.api.GrpcServerApi
-import timeseries.configs.GrpcServerCfg
-import zio.{ZIO, ZLayer}
+import timeseries.configs.ServerConfig.GrpcServerConfig
+import zio.*
 
 import scala.concurrent.ExecutionContext
 
-final class GrpcServer(grpcServerApi: GrpcServerApi, config: timeseries.configs.GrpcServerCfg):
-  def start =
+final case class GrpcServer(value: Server)
+
+object GrpcServer:
+  def acquire(api: GrpcServerApi, config: GrpcServerConfig): ZIO[Scope, Throwable, Server] =
     ZIO.acquireRelease {
       ZIO.attempt {
         ServerBuilder
           .forPort(config.port)
-          .addService(TimeSeriesGrpc.bindService(grpcServerApi, ExecutionContext.global))
+          .addService(TimeSeriesGrpc.bindService(api, ExecutionContext.global))
           .build()
           .start()
       }
-    }(server => ZIO.succeedUnsafe(_ => server.shutdown())).unit
+    }(server => ZIO.succeed(server.shutdown()))
 
-object GrpcServer:
-  val layer = ZLayer.fromFunction(GrpcServer(_, _))
+  val layer = ZLayer.scoped {
+    for
+      serverApi <- ZIO.service[GrpcServerApi]
+      config    <- ZIO.service[GrpcServerConfig]
+      server    <- acquire(serverApi, config)
+    yield GrpcServer(server)
+  }
