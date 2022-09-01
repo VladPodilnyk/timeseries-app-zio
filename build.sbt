@@ -16,8 +16,21 @@ val grpcNetty   = "1.34.0"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
+lazy val assemblySettings = Seq(
+  assembly / assemblyJarName := "app.jar",
+  assembly / target := target.value,
+  assembly / assemblyMergeStrategy := {
+    case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+    case "application.conf"            => MergeStrategy.concat
+    case x =>
+      val oldStrategy = (assembly / assemblyMergeStrategy).value
+      oldStrategy(x)
+  },
+)
+
 lazy val protobuf = project
   .in(file("protobuf"))
+  .disablePlugins(AssemblyPlugin)
   .settings(
     Compile / PB.targets := Seq(
       scalapb.gen(grpc = true) -> (Compile / sourceManaged).value
@@ -34,8 +47,10 @@ lazy val protobuf = project
 
 lazy val backend = project
   .in(file("backend"))
+  .enablePlugins(AssemblyPlugin)
   .settings(
     name := "timeseries-backend",
+    assemblySettings,
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio" % zio,
       "dev.zio" %% "zio-streams" % zio,
@@ -67,18 +82,7 @@ lazy val backend = project
 
 lazy val root = project
   .in(file("."))
-  .aggregate(backend)
-  .enablePlugins(DockerPlugin)
-  .enablePlugins(JavaAppPackaging)
+  .aggregate(backend, protobuf)
   .settings(
-    name            := "timeseries-app",
-    dockerBaseImage := "adoptopenjdk/openjdk11:x86_64-alpine-jre-11.0.6_10",
-    dockerBuildCommand := {
-      if (sys.props("os.arch") != "amd64") {
-        // use buildx with platform to build supported amd64 images on other CPU architectures
-        // this may require that you have first run 'docker buildx create' to set docker buildx up
-        dockerExecCommand.value ++ Seq("buildx", "build", "--platform=linux/amd64", "--load") ++ dockerBuildOptions.value :+ "."
-      } else dockerBuildCommand.value
-    },
-    dockerExposedPorts := Seq(8080),
+    name := "timeseries-app",
   )
